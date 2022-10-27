@@ -5,19 +5,16 @@
 
 
 int options(int argc, char **argv);
-void output(FILE *fp, char *buffer);
+void output(FILE *fp);
+void readFile(FILE **fp, int argc, char **argv, int currentFile);
 
 int main(int argc, char **argv) {
     FILE *fp;
-    char *buffer;
-    buffer = malloc(sizeof(char));
     
+    int currentFile = (argc > 1 ? 1 : 0);
     if (options(argc, argv)) {
       while (currentFile < argc) {
-        
-        output(fp, buffer);
-        fclose(fp);
-        free(buffer);
+        readFile(&fp, argc, argv, currentFile);
         currentFile++;
       }
     }
@@ -54,22 +51,28 @@ int options(int argc, char **argv) {
     return flag;
 }
 
-void output(FILE *fp, char *buffer) {
-    int size = 1, i = 0;
-    while ((buffer[i] = fgetc(fp)) != EOF) {
-      fprintf(stdout, "%c", buffer[i]);
+void output(FILE *fp) {
+//    int size = 1;
+    int i = 0;
+    char ch;
+    while ((ch = fgetc(fp)) != EOF) {
+      fprintf(stdout, "%c", ch);
         i++;
-        size++;
-        buffer = realloc(buffer, size);
+//        size++;
+//        buffer = realloc(buffer, size);
     }
 }
 
-void readFile(FILE **fp, int argc) {
-    int currentFile = (argc > 1 ? 1 : 0);
+void readFile(FILE **fp, int argc, char **argv, int currentFile) {
+    
+//    buffer = malloc(sizeof(char));
     if (argc > 1) {
-    *fp = fopen(argv[currentFile], "r");
-    if (fp == NULL) {
+      *fp = fopen(argv[currentFile], "r");
+      if (*fp == NULL) {
         fprintf(stderr, "cat: %s: No such file or directory\n", argv[currentFile]);
+      }
     }
-  }
+    output(*fp);
+    fclose(*fp);
+//    free(buffer);
 }
