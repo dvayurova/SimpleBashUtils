@@ -4,75 +4,82 @@
 #include<unistd.h>
 
 
-int options(int argc, char **argv);
-void output(FILE *fp);
-void readFile(FILE **fp, int argc, char **argv, int currentFile);
+int readFile(char **argv, int currentFile, FILE **f);
+void output(char *buffer, FILE *f, int *num, int b_flag);
+void bOpt(char **buffer, int *num);
+int options(int argc, char **argv, int* b_flag);
 
 int main(int argc, char **argv) {
-    FILE *fp;
+    FILE *f;
+    char buffer[10000];
+    int currentFile = 1;
+    int num = 1; // for b opt
+    int b_flag = 0; // for b opt
     
-    int currentFile = (argc > 1 ? 1 : 0);
-    if (options(argc, argv)) {
-      while (currentFile < argc) {
-        readFile(&fp, argc, argv, currentFile);
-        currentFile++;
-      }
+    if (argc > 1) {
+        if (options(argc, argv, &b_flag))
+            currentFile += 1;
+        while (currentFile < argc) {
+            if(readFile(argv, currentFile, &f)) {
+                output(buffer, f, &num, b_flag);
+            currentFile++;
+            num = 1;
+        }
+    }
     }
     return 0;
 }
 
-int options(int argc, char **argv) {
-    int bflag = 0, eflag = 0, nflag = 0, sflag = 0, tflag = 0, vflag = 0;
-//    int uflag = 0;
-    int opt;
-    int flag = 1;
+int readFile(char **argv, int currentFile, FILE **f) {
+  *f = fopen(argv[currentFile], "r");
+    if (*f == NULL) {
+      printf("%s: %s: No such file or directory\n", argv[0], argv[currentFile]);
+      return 0;
+    }
+    return 1;
+}
 
-    while ((opt = getopt(argc, argv, "benstuv?")) != -1) {
-        switch(opt) {
-            case 'b':
-                bflag++; break;
-            case 'e':
-                eflag++; break;
-            case 'n':
-                nflag++; break;
-            case 's':
-                sflag++; break;
-            case 't':
-                tflag++; break;
-//            case 'u':
-//                uflag++; break;
-            case 'v':
-                vflag++; break;
-            case '?':
-                printf("usage: cat [-benstuv] [file ...]\n");
-                flag = 0;
+void output(char *buffer, FILE *f, int *num, int b_flag) {
+    while (feof(f) == 0) {
+        fgets(buffer, 10000, f);
+        if (b_flag) {
+            bOpt(&buffer, num);
         }
-    }
-    return flag;
+        printf("%s", buffer);
+        }
 }
 
-void output(FILE *fp) {
-//    int size = 1;
-    int i = 0;
-    char ch;
-    while ((ch = fgetc(fp)) != EOF) {
-      fprintf(stdout, "%c", ch);
-        i++;
-//        size++;
-//        buffer = realloc(buffer, size);
-    }
-}
-
-void readFile(FILE **fp, int argc, char **argv, int currentFile) {
-    
-//    buffer = malloc(sizeof(char));
-    if (argc > 1) {
-      *fp = fopen(argv[currentFile], "r");
-      if (*fp == NULL) {
-        fprintf(stderr, "cat: %s: No such file or directory\n", argv[currentFile]);
+int options(int argc, char **argv, int* b_flag) {
+    char opt;
+    while((opt = getopt(argc, argv, "benstv")) != -1) {
+      switch(opt) {
+        case 'b':
+              *b_flag+=1; break;
+        case 'e':
+            break;
+        case 'n':
+            break;
+        case 's':
+            break;
+        case 't':
+            break;
+        case 'v':
+            break;
+          default:
+              printf("no flags"); //don't forget to delete
+              return 0;
       }
     }
-    output(*fp);
-    fclose(*fp);
-//    free(buffer);
+    return *b_flag;
+}
+
+void bOpt(char **buffer, int *num) {
+    int len = strlen(*buffer);
+    char str[10000];
+    sprintf(str, "%6d\t", *num);
+    if(len != 1) {
+        strcat(str, *buffer);
+        strcpy(*buffer, str);
+        *num+=1;
+    }
 }
