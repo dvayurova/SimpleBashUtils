@@ -9,17 +9,15 @@ typedef struct {
     int s_flag;
     int t_flag;
     int v_flag;
-    int E_flag;
-    int T_flag;
 } catOptions;
 
-void output(char c, int *position, int *num, catOptions opt);
+void output(char c, int *position, int *num, catOptions opt, int *empty_count);
 int options(int argc, char **argv, catOptions *opt);
 
 int main(int argc, char **argv) {
     char c;
     FILE *f;
-    int position = 0, num = 1, currentFile = 1;
+    int position = 0, num = 1, currentFile = 1, empty_count = 0;
     catOptions opt = {0};
     int flags = options(argc, argv, &opt);
     if (argc > 1) {
@@ -32,7 +30,7 @@ int main(int argc, char **argv) {
             } else {
                 while((c = fgetc(f)) != EOF) {
                     if (flags)
-                        output(c, &position, &num, opt);
+                        output(c, &position, &num, opt, &empty_count);
                     else
                         printf("%c", c);
                 }
@@ -46,7 +44,7 @@ int main(int argc, char **argv) {
     return 0;
 }
 
-void output(char c, int *position, int *num, catOptions opt) {
+void output(char c, int *position, int *num, catOptions opt, int *empty_count) {
     if(opt.b_flag) {
       if(c != '\n' && *position == 0) {
             printf("%6d\t", *num);
@@ -72,22 +70,24 @@ void output(char c, int *position, int *num, catOptions opt) {
           printf("%c", c);
       }
     }
-  if(!(opt.e_flag) && !(opt.t_flag)) {
+  if(!(opt.e_flag) && !(opt.t_flag) && !(opt.s_flag)) {
     printf("%c", c);
   }
-//    if(opt.s_flag) {
-//        int count = 0;
-//        while(c == '\n') {
-//         if (*position == 0) {
-//             count++;
-//         }
-//        }
-//        if(count > 1) {
-//            printf("\n");
-//        } else {
-//            printf("%c", c);
-//        }
-//    }
+    if(opt.s_flag) {
+        if(c == '\n') {
+            if(*position == 0) {
+              *empty_count+=2;
+              *position+=1;
+            } else
+              *empty_count+=1;
+        } else
+            *empty_count = 0;
+        if(*empty_count > 2) {
+            ;
+        } else {
+            printf("%c", c);
+        }
+    }
     if(opt.t_flag) {
       if(c == '\t') {
         printf("^I");
@@ -126,12 +126,13 @@ int options(int argc, char **argv, catOptions *opt) {
               opt->v_flag = 1;
               flag++; break;
         case 'E':
-              opt->E_flag = 1;
+              opt->e_flag = 1;
               flag++; break;
         case 'T':
-              opt->T_flag = 1;
+              opt->t_flag = 1;
               flag++; break;
           default:
+              
               exit(1);
       }
     }
