@@ -21,7 +21,8 @@ int main(int argc, char **argv) {
     int position = 0, num = 1, currentFile = 1;
     catOptions opt = {0};
     if (argc > 1) {
-        options(argc, argv, &opt);
+        if (options(argc, argv, &opt))
+            currentFile++;
         while(currentFile < argc) {
             f = fopen(argv[currentFile], "r");
             if (f == NULL) {
@@ -29,7 +30,6 @@ int main(int argc, char **argv) {
             } else {
                 while((c = fgetc(f)) != EOF) {
                     output(c, &position, &num, opt);
-                    
                 }
             }
             fclose(f);
@@ -38,18 +38,17 @@ int main(int argc, char **argv) {
             currentFile++;
         }
     }
-    
     return 0;
 }
 
 void output(char c, int *position, int *num, catOptions opt) {
+  
     if(opt.b_flag) {
       if(c != '\n' && *position == 0) {
             printf("%6d\t", *num);
             *position+=1;
             *num+=1;
       }
-          printf("%c", c);
         if(c == '\n')
             *position = 0;
     }
@@ -57,7 +56,6 @@ void output(char c, int *position, int *num, catOptions opt) {
       if(c == '\n') {
         printf("$");
       }
-    printf("%c", c);
     }
     if(opt.n_flag) {
       if(*position == 0) {
@@ -65,23 +63,15 @@ void output(char c, int *position, int *num, catOptions opt) {
             *position+=1;
             *num+=1;
         }
-            printf("%c", c);
-
         if(c == '\n')
             *position = 0;
     }
+  if(!(opt.t_flag)) {
+    printf("%c", c);
+  }
 //    if(opt.s_flag) {
-//      if(c == '\n' && *position == 0) {
-//          while(c == '\n') {
-//              break;
-//          }
-//      *position+=1;
-//      printf("\n");
-//      } else {
-//         printf("%c", c);
-//      }
-//      if(c == '\n')
-//        *position = 0;
+//
+//
 //    }
     if(opt.t_flag) {
       if(c == '\t') {
