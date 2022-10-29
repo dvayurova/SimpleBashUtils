@@ -1,5 +1,6 @@
 #include<stdio.h>
 #include<getopt.h>
+#include<stdlib.h>
 
 typedef struct {
     int b_flag;
@@ -20,8 +21,9 @@ int main(int argc, char **argv) {
     FILE *f;
     int position = 0, num = 1, currentFile = 1;
     catOptions opt = {0};
+    int flags = options(argc, argv, &opt);
     if (argc > 1) {
-        if (options(argc, argv, &opt))
+        if (flags)
             currentFile++;
         while(currentFile < argc) {
             f = fopen(argv[currentFile], "r");
@@ -29,7 +31,10 @@ int main(int argc, char **argv) {
               printf("%s: %s: No such file or directory\n", argv[0], argv[currentFile]);
             } else {
                 while((c = fgetc(f)) != EOF) {
-                    output(c, &position, &num, opt);
+                    if (flags)
+                        output(c, &position, &num, opt);
+                    else
+                        printf("%c", c);
                 }
             }
             fclose(f);
@@ -42,7 +47,6 @@ int main(int argc, char **argv) {
 }
 
 void output(char c, int *position, int *num, catOptions opt) {
-  
     if(opt.b_flag) {
       if(c != '\n' && *position == 0) {
             printf("%6d\t", *num);
@@ -52,12 +56,7 @@ void output(char c, int *position, int *num, catOptions opt) {
         if(c == '\n')
             *position = 0;
     }
-    if(opt.e_flag) {
-      if(c == '\n') {
-        printf("$");
-      }
-    }
-    if(opt.n_flag) {
+    if(opt.n_flag && !(opt.b_flag)) {
       if(*position == 0) {
             printf("%6d\t", *num);
             *position+=1;
@@ -66,12 +65,28 @@ void output(char c, int *position, int *num, catOptions opt) {
         if(c == '\n')
             *position = 0;
     }
-  if(!(opt.t_flag)) {
+    if(opt.e_flag) {
+      if(c == '\n') {
+        printf("$\n");
+      } else {
+          printf("%c", c);
+      }
+    }
+  if(!(opt.e_flag) && !(opt.t_flag)) {
     printf("%c", c);
   }
 //    if(opt.s_flag) {
-//
-//
+//        int count = 0;
+//        while(c == '\n') {
+//         if (*position == 0) {
+//             count++;
+//         }
+//        }
+//        if(count > 1) {
+//            printf("\n");
+//        } else {
+//            printf("%c", c);
+//        }
 //    }
     if(opt.t_flag) {
       if(c == '\t') {
@@ -80,11 +95,11 @@ void output(char c, int *position, int *num, catOptions opt) {
           printf("%c", c);
       }
     }
-    
 }
 
 int options(int argc, char **argv, catOptions *opt) {
     char ch;
+    int flag = 0;
     static struct option long_option[] = {
         {"number-nonblank", 0, NULL, 'b'},
         {"number", 0, NULL, 'n'},
@@ -94,25 +109,32 @@ int options(int argc, char **argv, catOptions *opt) {
     while((ch = getopt_long(argc, argv, "+benstET", long_option, NULL)) != -1) {
       switch(ch) {
         case 'b':
-              opt->b_flag = 1; break;
+              opt->b_flag = 1;
+              flag++; break;
         case 'e':
               opt->e_flag = 1;
-              opt->v_flag = 1; break;
+              opt->v_flag = 1;
+              flag++; break;
         case 'n':
-              opt->n_flag = 1; break;
+              opt->n_flag = 1;
+              flag++; break;
         case 's':
-              opt->s_flag = 1; break;
+              opt->s_flag = 1;
+              flag++; break;
         case 't':
               opt->t_flag = 1;
-              opt->v_flag = 1; break;
+              opt->v_flag = 1;
+              flag++; break;
         case 'E':
-              opt->E_flag = 1; break;
+              opt->E_flag = 1;
+              flag++; break;
         case 'T':
-              opt->T_flag = 1; break;
+              opt->T_flag = 1;
+              flag++; break;
           default:
-              return 0;
+              exit(1);
       }
     }
-    return 1;
+    return flag;
 }
 
