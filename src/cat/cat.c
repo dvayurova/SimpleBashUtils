@@ -11,18 +11,18 @@ typedef struct {
     int v_flag;
 } catOptions;
 
-void output(char c, int *position, int *num, catOptions opt, int *empty_count);
+void output(char c, int *position, int *num, catOptions opt, int *empty_count, int *position_forS);
 int options(int argc, char **argv, catOptions *opt);
+int numOfFlags(int argc, char** argv);
 
 int main(int argc, char **argv) {
     char c;
     FILE *f;
-    int position = 0, num = 1, currentFile = 1, empty_count = 0;
+    int position = 0, num = 1, empty_count = 0, position_forS = 0;
+    int currentFile = 1 + numOfFlags(argc, argv);
     catOptions opt = {0};
     int flags = options(argc, argv, &opt);
     if (argc > 1) {
-        if (flags)
-            currentFile++;
         while(currentFile < argc) {
             f = fopen(argv[currentFile], "r");
             if (f == NULL) {
@@ -30,7 +30,7 @@ int main(int argc, char **argv) {
             } else {
                 while((c = fgetc(f)) != EOF) {
                     if (flags)
-                        output(c, &position, &num, opt, &empty_count);
+                        output(c, &position, &num, opt, &empty_count, &position_forS);
                     else
                         printf("%c", c);
                 }
@@ -44,7 +44,7 @@ int main(int argc, char **argv) {
     return 0;
 }
 
-void output(char c, int *position, int *num, catOptions opt, int *empty_count) {
+void output(char c, int *position, int *num, catOptions opt, int *empty_count, int *position_forS) {
     if(opt.b_flag) {
       if(c != '\n' && *position == 0) {
             printf("%6d\t", *num);
@@ -70,14 +70,11 @@ void output(char c, int *position, int *num, catOptions opt, int *empty_count) {
           printf("%c", c);
       }
     }
-  if(!(opt.e_flag) && !(opt.t_flag) && !(opt.s_flag)) {
-    printf("%c", c);
-  }
     if(opt.s_flag) {
         if(c == '\n') {
-            if(*position == 0) {
+            if(*position_forS == 0) {
               *empty_count+=2;
-              *position+=1;
+              *position_forS+=1;
             } else
               *empty_count+=1;
         } else
@@ -95,6 +92,19 @@ void output(char c, int *position, int *num, catOptions opt, int *empty_count) {
           printf("%c", c);
       }
     }
+//    if(opt.v_flag) {
+//        if((c >= 0 && c <= 8) || (c >= 11 && c <= 31)) {
+//          printf("^");
+//          c += 64;
+//        }
+//        if(c >= 127 && c <= 160) {
+//            printf("^");
+//            c -= 64;
+//          }
+//    }
+    if(!(opt.e_flag) && !(opt.t_flag) && !(opt.s_flag)) {
+      printf("%c", c);
+    }
 }
 
 int options(int argc, char **argv, catOptions *opt) {
@@ -106,7 +116,8 @@ int options(int argc, char **argv, catOptions *opt) {
         {"squeeze-blank", 0, NULL, 's'},
         {NULL, 0, NULL, 0}
     };
-    while((ch = getopt_long(argc, argv, "+benstET", long_option, NULL)) != -1) {
+    opterr = 0;
+    while((ch = getopt_long(argc, argv, "+benstvET", long_option, NULL)) != -1) {
       switch(ch) {
         case 'b':
               opt->b_flag = 1;
@@ -131,11 +142,25 @@ int options(int argc, char **argv, catOptions *opt) {
         case 'T':
               opt->t_flag = 1;
               flag++; break;
+        case 'v':
+                opt->v_flag = 1;
+                flag++; break;
           default:
-              
+              fprintf(stderr, "usage: %s [-benstuv] [file ...]", argv[0]);
               exit(1);
       }
     }
     return flag;
 }
 
+int numOfFlags(int argc, char** argv) {
+    int countOfFlags = 0, i = 1;
+    while(i < argc) {
+        if(argv[i][0] == '-') {
+            countOfFlags++;
+        } else
+            i = argc;
+        i++;
+    }
+    return countOfFlags;
+}
