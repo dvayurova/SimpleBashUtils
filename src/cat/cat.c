@@ -36,19 +36,20 @@ int main(int argc, char **argv) {
 }
 
 void cat_func(FILE *f, catOptions opt) {
-    int position = 0, num = 1, beg = 0;
+    int position = 0, num = 1, beginOfFile = 0;
     char c;
     char prevCh = '\n', prevPrev = '\n';
     while((c = fgetc(f)) != EOF) {
+        if(opt.s_flag && prevCh == '\n' && c == '\n' && prevPrev == '\n' && beginOfFile != 0) {
+            continue;
+        }
         if((opt.b_flag && c != '\n' && position == 0) ||
            (opt.n_flag && !(opt.b_flag) && position == 0)) {
             printf("%6d\t", num);
             num++;
             position++;
         }
-        if(opt.s_flag && prevCh == '\n' && c == '\n' && prevPrev == '\n' && beg != 0) {
-            continue;
-        }
+        
         if(opt.e_flag && c == '\n') {
             printf("$");
         }
@@ -68,7 +69,7 @@ void cat_func(FILE *f, catOptions opt) {
         }
         prevPrev = prevCh;
         prevCh = c;
-        beg++;
+        beginOfFile++;
         if (c == '\n')
             position = 0;
         printf("%c", c);
