@@ -11,7 +11,7 @@ typedef struct {
     int v_flag;
 } catOptions;
 
-int options(int argc, char **argv, catOptions *opt);
+void options(int argc, char **argv, catOptions *opt);
 int numOfFlags(int argc, char** argv);
 void cat_func(FILE *f, catOptions opt);
 
@@ -46,7 +46,6 @@ void cat_func(FILE *f, catOptions opt) {
             num++;
             position++;
         }
-        
         if(opt.s_flag && prevCh == '\n' && c == '\n' && prevPrev == '\n' && beg != 0) {
             continue;
         }
@@ -68,7 +67,6 @@ void cat_func(FILE *f, catOptions opt) {
             }
         }
         prevPrev = prevCh;
-
         prevCh = c;
         beg++;
         if (c == '\n')
@@ -77,9 +75,8 @@ void cat_func(FILE *f, catOptions opt) {
     }
 }
 
-int options(int argc, char **argv, catOptions *opt) {
+void options(int argc, char **argv, catOptions *opt) {
     char ch;
-    int flag = 0;
     static struct option long_option[] = {
         {"number-nonblank", 0, NULL, 'b'},
         {"number", 0, NULL, 'n'},
@@ -89,37 +86,28 @@ int options(int argc, char **argv, catOptions *opt) {
     while((ch = getopt_long(argc, argv, "+benstvET", long_option, NULL)) != -1) {
       switch(ch) {
         case 'b':
-              opt->b_flag = 1;
-              flag++; break;
+              opt->b_flag = 1; break;
         case 'e':
               opt->e_flag = 1;
-              opt->v_flag = 1;
-              flag++; break;
+              opt->v_flag = 1; break;
         case 'n':
-              opt->n_flag = 1;
-              flag++; break;
+              opt->n_flag = 1; break;
         case 's':
-              opt->s_flag = 1;
-              flag++; break;
+              opt->s_flag = 1; break;
         case 't':
               opt->t_flag = 1;
-              opt->v_flag = 1;
-              flag++; break;
+              opt->v_flag = 1; break;
         case 'E':
-              opt->e_flag = 1;
-              flag++; break;
+              opt->e_flag = 1; break;
         case 'T':
-              opt->t_flag = 1;
-              flag++; break;
+              opt->t_flag = 1; break;
         case 'v':
-                opt->v_flag = 1;
-                flag++; break;
+                opt->v_flag = 1; break;
           default:
               fprintf(stderr, "usage: %s [-benstuv] [file ...]", argv[0]);
               exit(1);
       }
     }
-    return flag;
 }
 
 int numOfFlags(int argc, char** argv) {
