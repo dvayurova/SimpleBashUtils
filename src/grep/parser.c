@@ -17,21 +17,21 @@ typedef struct {
 
 
 
-int getOption(int argc, char** argv, char* opts, grepOptions *opt, char** patterns);
-void parser(char flag, grepOptions *opt);
+int getOption(int argc, char** argv, grepOptions *opt, char** patterns);
+int parser(grepOptions *opt, int i, char** argv, int *numOfpatterns, char** patterns);
 void copyEOstr (char *dest, char *src, int k);
+void patternForE(char** argv, int i, int k, int* n, char** patterns);
+char* patternWithoutE (int argc, char** argv);
 
 int main(int argc, char** argv) {
-    char options[100];
     char* patterns[100];
     for (int i = 0; i < 100; i++)
         patterns[i] = NULL;
     grepOptions opt = {0};
-    getOption(argc, argv, options,  &opt, patterns);
-    for (int i = 0; i < (int)strlen(options); i++)
-      printf("%c\n", options[i]);
-    for (int i = 0; i < argc; i++)
-      printf("i = %d: %s \n", i, argv[i]);
+    getOption(argc, argv, &opt, patterns);
+//    for (int i = 0; i < argc; i++)
+//      if(argv[i] == NULL)
+//        printf("i = %d: %s \n", i, argv[i]);
     printf("e_flag = %d\nc_flag = %d\no_flag = %d\nn_flag = %d\n", opt.e_flag, opt.c_flag, opt.o_flag, opt.n_flag);
     printf("patterns[0] = %s\n", patterns[0]);
     printf("patterns[1] = %s\n", patterns[1]);
@@ -40,32 +40,11 @@ int main(int argc, char** argv) {
         free(patterns[i]);
 }
 
-int getOption(int argc, char** argv, char* opts, grepOptions *opt, char** patterns) {
-    int i = 1, j = 0, l = 0;
-    char pgrepOpts[] = "eivclnhsfo";
+int getOption(int argc, char** argv, grepOptions *opt, char** patterns) {
+    int i = 1, numOfpatterns = 0;
     while(i < argc) {
-        int k = 1;
         if(argv[i][0] == '-') {
-            while (argv[i][k] != '\0') {
-                if(strchr(pgrepOpts, argv[i][k]) != NULL) {
-                    opts[j] = argv[i][k];
-                    parser(opts[j], opt);
-                    if(opt->e_flag) {
-                        if (argv[i][k + 1] != '\0') {
-// копируем часть строки i после флага е в паттерн
-                            patterns[l] = (char*)realloc(patterns[l], ((strlen(argv[i])) - k));
-                            copyEOstr (patterns[l], argv[i], k+1);
-                        } else {
-                        patterns[l] = (char*)realloc(patterns[l], (strlen(argv[i+1])));
-                        strcpy(patterns[l], argv[i+1]);
-                        memset(argv[i+1], '\0', strlen(argv[i+1]));
-                        }
-                        l++;
-                    }
-                  j++;
-                }
-                k++;
-            }
+            parser(opt, i, argv, &numOfpatterns, patterns);
             memset(argv[i], '\0', strlen(argv[i]));
         }
         i++;
@@ -73,10 +52,13 @@ int getOption(int argc, char** argv, char* opts, grepOptions *opt, char** patter
     return 1;
 }
 
-void parser(char flag, grepOptions *opt) {
-    switch (flag) {
+int parser(grepOptions *opt, int i, char** argv, int *numOfpatterns, char** patterns) {
+    int k = 1, err = 1;
+    while (argv[i][k] != '\0') {
+     switch (argv[i][k]) {
       case 'e':
         opt->e_flag = 1;
+        patternForE(argv, i, k, numOfpatterns, patterns);
         break;
       case 'i':
         opt->i_flag = 1;
@@ -106,8 +88,11 @@ void parser(char flag, grepOptions *opt) {
         opt->o_flag = 1;
         break;
       default:
-        fprintf(stderr, "usage: ....");
+            err = 0;
 }
+        k++;
+}
+    return err;
 }
 
 
@@ -119,4 +104,28 @@ while(src[k] != '\0') {
     m++;
     k++;
 }
+    memset(src, '\0', strlen(src));
+}
+
+    
+// парсим шаблон после флага -е
+void patternForE(char** argv, int i, int k, int* l, char** patterns) {
+    if (argv[i][k + 1] != '\0') {
+// копируем часть строки i после флага -е в паттерн
+        patterns[*l] = realloc((patterns[*l]), ((strlen(argv[i])) - k) * sizeof(char));
+        copyEOstr (patterns[*l], argv[i], k+1);
+        memset(argv[i], '\0', strlen(argv[i]));
+    } else {
+    patterns[*l] = realloc((patterns[*l]), (strlen(argv[i+1])) * sizeof(char));
+    strcpy(patterns[*l], argv[i+1]);
+    memset(argv[i+1], '\0', strlen(argv[i+1]));
+    }
+    *l+=1; // l = numOfpatterns
+}
+
+char* patternWithoutE (int argc, char** argv) {
+    while(i < argc) {
+        if (argv[i][0] != '\0')
+            return argv[i];
+    }
 }
