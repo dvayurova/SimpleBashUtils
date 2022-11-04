@@ -19,7 +19,7 @@ typedef struct {
 
 int patternWithoutE (int argc, char** argv, char** patterns);
 int grepFunc(char *line, char** patterns, grepOptions opt);
-void reader(FILE *f, int (*grep)(char*, char**, grepOptions), char** patterns, grepOptions opt, int numOfFiles, char* nameOfFile);
+void reader(FILE *f, int (*grep)(char*, char**, grepOptions), char** patterns, grepOptions opt, int numOfFiles, char* nameOfFile, int* counter);
 int getOption(int argc, char** argv, grepOptions *opt, char** patterns, int *numOfpatterns);
 int parser(grepOptions *opt, int i, char** argv, int *numOfpatterns, char** patterns);
 void patternForE(char** argv, int i, int k, int* l, char** patterns);
@@ -44,10 +44,16 @@ int main(int argc, char** argv) {
     while (currentFile < argc) {
         if (argv[currentFile][0] != '\0') {
             f = fopen(argv[currentFile], "rb");
+            int counter = 0; //  для фалага -с
             nameOfFile = realloc(nameOfFile, (strlen(argv[currentFile])) * sizeof(char));
             strcpy(nameOfFile, argv[currentFile]);
              if (f != NULL) {
-                reader(f, grepFunc, patterns, opt, numOfFiles, nameOfFile);
+                 reader(f, grepFunc, patterns, opt, numOfFiles, nameOfFile, &counter);
+                 if (opt.c_flag) {
+                     if(numOfFiles > 1)
+                         printf("%s:", nameOfFile);
+                     printf("%d\n", counter);
+                 }
                  fclose(f);
              } else {
                  fprintf(stderr, "grep: %s: No such file or directory\n",
@@ -94,22 +100,26 @@ int grepFunc(char *line, char** patterns, grepOptions opt) {
 }
 
 
-void reader(FILE *f, int (*grep)(char*, char**, grepOptions), char** patterns, grepOptions opt, int numOfFiles, char* nameOfFile) {
+void reader(FILE *f, int (*grep)(char*, char**, grepOptions), char** patterns, grepOptions opt, int numOfFiles, char* nameOfFile, int* counter) {
     char* buffer = NULL;
     size_t len = 0;
     ssize_t read;
     int num = 1;
     while((read = getline(&buffer, &len, f)) != -1) {
-        if(grep(buffer, patterns, opt)) {
-            if (opt.n_flag) {
+        if(grep(buffer, patterns, opt) == 1) {
+            if (opt.c_flag) {
+                *counter+=1;
+            } else {
+              if (opt.n_flag) {
                 if(numOfFiles > 1)
                     printf("%s:", nameOfFile);
                 printf("%d:%s", num, buffer);
-            } else {
+              } else {
                 if(numOfFiles > 1)
                     printf("%s:", nameOfFile);
                 printf("%s", buffer);
             }
+           }
         }
         num++;
     }
