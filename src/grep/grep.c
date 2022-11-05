@@ -37,6 +37,7 @@ int main(int argc, char** argv) {
     getOption(argc, argv, &opt, patterns, &numOfpatterns);
     if(opt.e_flag == 0) {
       patternWithoutE (argc, argv, patterns);
+      numOfpatterns = 1;
     }
 //    printf("pattern = %s\n", patterns[0]);
     int numOfFiles = numberOfFiles(argc, argv);
@@ -77,6 +78,7 @@ int patternWithoutE (int argc, char** argv, char** patterns) {
             patterns[0] = realloc((patterns[0]), ((strlen(argv[i])) * sizeof(char)));
             strcpy(patterns[0], argv[i]);
             memset(argv[i], '\0', strlen(argv[i]));
+//            printf("pattern = %s", patterns[0]);
             return 1;
     }
         i++;
@@ -86,16 +88,17 @@ int patternWithoutE (int argc, char** argv, char** patterns) {
 
 int grepFunc(char *line, char** patterns, grepOptions opt, int numOfpatterns) {
     regex_t reg;
-    regmatch_t match[5];
+    regmatch_t match[5];  // сколько указать?
     int r, result = 0;
 //    if(!opt.e_flag)
-    regcomp(&reg, patterns[0], opt.i_flag ? REG_ICASE | REG_EXTENDED : REG_EXTENDED); // вместо patterns[0] добавить все паттерны если их больше
+//    regcomp(&reg, patterns[0], opt.i_flag ? REG_ICASE | REG_EXTENDED : REG_EXTENDED);
     for(int i = 0; i < numOfpatterns; i++) {
         regcomp(&reg, patterns[i], opt.i_flag ? REG_ICASE | REG_EXTENDED : REG_EXTENDED);
         r = regexec(&reg, line, 5, match, 0);
         if(r == 0) {
             result =  1;
         }
+        
     }
     return result;
     regfree(&reg);
