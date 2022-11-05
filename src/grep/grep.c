@@ -29,15 +29,15 @@ int numberOfFiles(int argc, char** argv);
 int main(int argc, char** argv) {
     FILE *f;
     char* nameOfFile = NULL;
-    char* fileForF[50]; //  названия файлов для флага -f поменять на динамический чтобы не использовать лишнюю память
-    char* patterns[50];  // поменять на динамический чтобы не использовать лишнюю память + в файле мб много паттернов
-    for (int i = 0; i < 50; i++) {
+    char* fileForF[100]; //  названия файлов для флага -f поменять на динамический чтобы не использовать лишнюю память
+    char* patterns[100];  // поменять на динамический чтобы не использовать лишнюю память + в файле мб много паттернов
+    for (int i = 0; i < 100; i++) {
         patterns[i] = NULL;
         fileForF[i] = NULL;
     }
     grepOptions opt = {0};
-    int numOfpatterns = 0, numOffiles = 0;
-    getOption(argc, argv, &opt, patterns, &numOfpatterns, &numOffiles, fileForF);
+    int numOfpatterns = 0, PatternFiles = 0;
+    getOption(argc, argv, &opt, patterns, &numOfpatterns, &PatternFiles, fileForF);
     if(opt.e_flag == 0 && opt.f_flag == 0) {
       patternWithoutE (argc, argv, patterns);
       numOfpatterns = 1;
@@ -49,12 +49,12 @@ int main(int argc, char** argv) {
         if (argv[currentFile][0] != '\0') {
             f = fopen(argv[currentFile], "rb");
             int counter = 0; //  для фалага -с
-            nameOfFile = realloc(nameOfFile, (strlen(argv[currentFile])) * sizeof(char));
+            nameOfFile = realloc(nameOfFile, (strlen(argv[currentFile])) * sizeof(char));  // nameOfFile нужен чтоб печатать названия файла перед строкой для нескольких файлов
             strcpy(nameOfFile, argv[currentFile]);
              if (f != NULL) {
                  reader(f, grepFunc, patterns, opt, numOfFiles, nameOfFile, &counter, numOfpatterns);
                  if (opt.c_flag) {
-                     if(numOfFiles > 1)
+                     if(numOfFiles > 1 && !opt.h_flag)
                          printf("%s:", nameOfFile);
                      printf("%d\n", counter);
                  }
@@ -75,22 +75,6 @@ int main(int argc, char** argv) {
     return 0;
 }
 
-
-
-int patternWithoutE (int argc, char** argv, char** patterns) {
-    int i = 1;
-    while(i < argc - 1) {
-        if (argv[i][0] != '\0') {
-            patterns[0] = realloc((patterns[0]), ((strlen(argv[i])) * sizeof(char)));
-            strcpy(patterns[0], argv[i]);
-            memset(argv[i], '\0', strlen(argv[i]));
-//            printf("pattern = %s", patterns[0]);
-            return 1;
-    }
-        i++;
-}
-    return 0;
-}
 
 int grepFunc(char *line, char** patterns, grepOptions opt, int numOfpatterns) {
     regex_t reg;
@@ -119,11 +103,11 @@ void reader(FILE *f, int (*grep)(char*, char**, grepOptions, int), char** patter
                 *counter+=1;
             } else {
               if (opt.n_flag) {
-                if(numOfFiles > 1)
+                if(numOfFiles > 1 && !opt.h_flag)
                     printf("%s:", nameOfFile);
                 printf("%d:%s", num, buffer);
               } else {
-                if(numOfFiles > 1)
+                if(numOfFiles > 1  && !opt.h_flag)
                     printf("%s:", nameOfFile);
                 printf("%s", buffer);
             }
@@ -192,7 +176,24 @@ int parser(grepOptions *opt, int i, char** argv, int *numOfpatterns, char** patt
     return err;
 }
 
-// парсим шаблон после флага -е
+
+int patternWithoutE (int argc, char** argv, char** patterns) {
+    int i = 1;
+    while(i < argc - 1) {
+        if (argv[i][0] != '\0') {
+            patterns[0] = realloc((patterns[0]), ((strlen(argv[i])) * sizeof(char)));
+            strcpy(patterns[0], argv[i]);
+            memset(argv[i], '\0', strlen(argv[i]));
+//            printf("pattern = %s", patterns[0]);
+            return 1;
+    }
+        i++;
+}
+    return 0;
+}
+
+
+// парсим шаблон после флага -е или название файла после флага -f
 void getPatternEOrFileF(char** argv, int i, int k, int* l, char** str) {
     if (argv[i][k + 1] != '\0') {
 // копируем часть строки i после флага -е в паттерн
@@ -228,3 +229,25 @@ int numberOfFiles(int argc, char** argv) {
     return numfiles;
 }
 
+//void patternsFromFile() {
+//    FILE *f;
+//    char* buffer = NULL;
+//    size_t len = 0;
+//    ssize_t read;
+//    
+//    for(int i = 0; i < PatternFiles; i++) {
+//      f = fopen(fileForF[i], "rb");
+//        if (f != NULL) {
+//            while((read = getline(&buffer, &len, f)) != -1) {
+//            patterns[*l] = realloc((patterns[*l]), ((strlen(buffer)) * sizeof(char)));
+//            strcpy(patterns[*l], buffer);
+//            free(buffer);
+//            *l+=1;
+//            }
+//            fclose(f);
+//        } else {
+//            fprintf(stderr, "grep: %s: No such file or directory\n",
+//                argv[currentFile]);  // поменять на return 0 и добавить в output - если !input то печатать  эту ошибку
+//        }
+//    }
+//}
