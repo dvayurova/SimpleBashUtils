@@ -18,8 +18,8 @@ typedef struct {
 
 
 int patternWithoutE (int argc, char** argv, char** patterns);
-int grepFunc(char *line, char** patterns, grepOptions opt);
-void reader(FILE *f, int (*grep)(char*, char**, grepOptions), char** patterns, grepOptions opt, int numOfFiles, char* nameOfFile, int* counter);
+int grepFunc(char *line, char** patterns, grepOptions opt, int numOfpatterns);
+void reader(FILE *f, int (*grep)(char*, char**, grepOptions, int), char** patterns, grepOptions opt, int numOfFiles, char* nameOfFile, int* counter,  int numOfpatterns);
 int getOption(int argc, char** argv, grepOptions *opt, char** patterns, int *numOfpatterns);
 int parser(grepOptions *opt, int i, char** argv, int *numOfpatterns, char** patterns);
 void patternForE(char** argv, int i, int k, int* l, char** patterns);
@@ -40,7 +40,7 @@ int main(int argc, char** argv) {
     }
 //    printf("pattern = %s\n", patterns[0]);
     int numOfFiles = numberOfFiles(argc, argv);
-    int currentFile = 1;  // для варианта где больше 1 файла добавить вывод названия файла в функции output
+    int currentFile = 1;
     while (currentFile < argc) {
         if (argv[currentFile][0] != '\0') {
             f = fopen(argv[currentFile], "rb");
@@ -48,7 +48,7 @@ int main(int argc, char** argv) {
             nameOfFile = realloc(nameOfFile, (strlen(argv[currentFile])) * sizeof(char));
             strcpy(nameOfFile, argv[currentFile]);
              if (f != NULL) {
-                 reader(f, grepFunc, patterns, opt, numOfFiles, nameOfFile, &counter);
+                 reader(f, grepFunc, patterns, opt, numOfFiles, nameOfFile, &counter, numOfpatterns);
                  if (opt.c_flag) {
                      if(numOfFiles > 1)
                          printf("%s:", nameOfFile);
@@ -84,29 +84,31 @@ int patternWithoutE (int argc, char** argv, char** patterns) {
     return 0;
 }
 
-//int grep_func(char *line, char** patterns, grepOptions opt) {  // пока убрала  grepOptions opt
-int grepFunc(char *line, char** patterns, grepOptions opt) {
+int grepFunc(char *line, char** patterns, grepOptions opt, int numOfpatterns) {
     regex_t reg;
     regmatch_t match[5];
+    int r, result = 0;
 //    if(!opt.e_flag)
-    regcomp(&reg, patterns[0], opt.i_flag ? REG_ICASE | REG_EXTENDED : REG_EXTENDED); // вместо argv[1] передаем или char* patternWithoutE (int argc, char** argv) ИЛИ массив char* patterns[100]
-    int r = regexec(&reg, line, 5, match, 0);
-    if(r == 0) {
-        return 1;
-    } else {
-        return 0;
-      }
+    regcomp(&reg, patterns[0], opt.i_flag ? REG_ICASE | REG_EXTENDED : REG_EXTENDED); // вместо patterns[0] добавить все паттерны если их больше
+    for(int i = 0; i < numOfpatterns; i++) {
+        regcomp(&reg, patterns[i], opt.i_flag ? REG_ICASE | REG_EXTENDED : REG_EXTENDED);
+        r = regexec(&reg, line, 5, match, 0);
+        if(r == 0) {
+            result =  1;
+        }
+    }
+    return result;
     regfree(&reg);
 }
 
 
-void reader(FILE *f, int (*grep)(char*, char**, grepOptions), char** patterns, grepOptions opt, int numOfFiles, char* nameOfFile, int* counter) {
+void reader(FILE *f, int (*grep)(char*, char**, grepOptions, int), char** patterns, grepOptions opt, int numOfFiles, char* nameOfFile, int* counter,  int numOfpatterns) {
     char* buffer = NULL;
     size_t len = 0;
     ssize_t read;
     int num = 1;
     while((read = getline(&buffer, &len, f)) != -1) {
-        if(grep(buffer, patterns, opt) == 1) {
+        if(grep(buffer, patterns, opt, numOfpatterns) == 1) {
             if (opt.c_flag) {
                 *counter+=1;
             } else {
@@ -176,6 +178,7 @@ int parser(grepOptions *opt, int i, char** argv, int *numOfpatterns, char** patt
         break;
       default:
             err = 0;
+             exit(1);   // убрать exit, использовать флаг + проверять сработал ли флаг -е. Добавить печать ошибки об отсутствии опции. См. ./a.out -iONE test.txt text.txt
 }
         k++;
 }
@@ -206,7 +209,6 @@ while(src[k] != '\0') {
     m++;
     k++;
 }
-//    memset(src, '\0', strlen(src)); // лишнее?
 }
 
 int numberOfFiles(int argc, char** argv) {
