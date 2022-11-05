@@ -20,22 +20,25 @@ typedef struct {
 int patternWithoutE (int argc, char** argv, char** patterns);
 int grepFunc(char *line, char** patterns, grepOptions opt, int numOfpatterns);
 void reader(FILE *f, int (*grep)(char*, char**, grepOptions, int), char** patterns, grepOptions opt, int numOfFiles, char* nameOfFile, int* counter,  int numOfpatterns);
-int getOption(int argc, char** argv, grepOptions *opt, char** patterns, int *numOfpatterns);
-int parser(grepOptions *opt, int i, char** argv, int *numOfpatterns, char** patterns);
-void patternForE(char** argv, int i, int k, int* l, char** patterns);
+int getOption(int argc, char** argv, grepOptions *opt, char** patterns, int *numOfpatterns, int *numOffiles, char** fileForF);
+int parser(grepOptions *opt, int i, char** argv, int *numOfpatterns, char** patterns, int *numOffiles, char** fileForF);
+void getPatternEOrFileF(char** argv, int i, int k, int* l, char** str);
 void copyEOstr (char *dest, char *src, int k);
 int numberOfFiles(int argc, char** argv);
 
 int main(int argc, char** argv) {
     FILE *f;
     char* nameOfFile = NULL;
+    char* fileForF[50]; //  названия файлов для флага -f поменять на динамический чтобы не использовать лишнюю память
     char* patterns[50];  // поменять на динамический чтобы не использовать лишнюю память + в файле мб много паттернов
-    for (int i = 0; i < 50; i++)
+    for (int i = 0; i < 50; i++) {
         patterns[i] = NULL;
+        fileForF[i] = NULL;
+    }
     grepOptions opt = {0};
-    int numOfpatterns = 0;
-    getOption(argc, argv, &opt, patterns, &numOfpatterns);
-    if(opt.e_flag == 0) {
+    int numOfpatterns = 0, numOffiles = 0;
+    getOption(argc, argv, &opt, patterns, &numOfpatterns, &numOffiles, fileForF);
+    if(opt.e_flag == 0 && opt.f_flag == 0) {
       patternWithoutE (argc, argv, patterns);
       numOfpatterns = 1;
     }
@@ -63,8 +66,11 @@ int main(int argc, char** argv) {
         }
      currentFile++;
     }
+//    printf("file: %s\n", fileForF[0]);
+//    printf("file: %s\n", fileForF[1]);
     for (int i = 0; i < numOfpatterns; i++)  {
         free(patterns[i]);
+        free(fileForF[i]);
     }
     return 0;
 }
@@ -90,18 +96,15 @@ int grepFunc(char *line, char** patterns, grepOptions opt, int numOfpatterns) {
     regex_t reg;
     regmatch_t match[5];  // сколько указать?
     int r, result = 0;
-//    if(!opt.e_flag)
-//    regcomp(&reg, patterns[0], opt.i_flag ? REG_ICASE | REG_EXTENDED : REG_EXTENDED);
     for(int i = 0; i < numOfpatterns; i++) {
         regcomp(&reg, patterns[i], opt.i_flag ? REG_ICASE | REG_EXTENDED : REG_EXTENDED);
         r = regexec(&reg, line, 5, match, 0);
         if(r == 0) {
             result =  1;
         }
-        
+        regfree(&reg);
     }
     return result;
-    regfree(&reg);
 }
 
 
@@ -132,11 +135,11 @@ void reader(FILE *f, int (*grep)(char*, char**, grepOptions, int), char** patter
 }
 
 
-int getOption(int argc, char** argv, grepOptions *opt, char** patterns, int *numOfpatterns) {
+int getOption(int argc, char** argv, grepOptions *opt, char** patterns, int *numOfpatterns, int *numOffiles, char** fileForF) {
     int i = 1;
     while(i < argc) {
         if(argv[i][0] == '-') {
-            parser(opt, i, argv, numOfpatterns, patterns);
+            parser(opt, i, argv, numOfpatterns, patterns, numOffiles, fileForF);
             memset(argv[i], '\0', strlen(argv[i]));
         }
         i++;
@@ -144,13 +147,13 @@ int getOption(int argc, char** argv, grepOptions *opt, char** patterns, int *num
     return 1;
 }
 
-int parser(grepOptions *opt, int i, char** argv, int *numOfpatterns, char** patterns) {
+int parser(grepOptions *opt, int i, char** argv, int *numOfpatterns, char** patterns, int *numOffiles, char** fileForF) {
     int k = 1, err = 1;
     while (argv[i][k] != '\0') {
      switch (argv[i][k]) {
       case 'e':
         opt->e_flag = 1;
-        patternForE(argv, i, k, numOfpatterns, patterns);
+        getPatternEOrFileF(argv, i, k, numOfpatterns, patterns);
         break;
       case 'i':
         opt->i_flag = 1;
@@ -175,6 +178,7 @@ int parser(grepOptions *opt, int i, char** argv, int *numOfpatterns, char** patt
         break;
       case 'f':
         opt->f_flag = 1;
+        getPatternEOrFileF(argv, i, k, numOffiles, fileForF);
         break;
       case 'o':
         opt->o_flag = 1;
@@ -189,15 +193,15 @@ int parser(grepOptions *opt, int i, char** argv, int *numOfpatterns, char** patt
 }
 
 // парсим шаблон после флага -е
-void patternForE(char** argv, int i, int k, int* l, char** patterns) {
+void getPatternEOrFileF(char** argv, int i, int k, int* l, char** str) {
     if (argv[i][k + 1] != '\0') {
 // копируем часть строки i после флага -е в паттерн
-        patterns[*l] = realloc((patterns[*l]), ((strlen(argv[i])) - k) * sizeof(char));
-        copyEOstr (patterns[*l], argv[i], k+1);
+        str[*l] = realloc((str[*l]), ((strlen(argv[i])) - k) * sizeof(char));
+        copyEOstr (str[*l], argv[i], k+1);
         memset(argv[i], '\0', strlen(argv[i]));
     } else {
-    patterns[*l] = realloc((patterns[*l]), (strlen(argv[i+1])) * sizeof(char));
-    strcpy(patterns[*l], argv[i+1]);
+    str[*l] = realloc((str[*l]), (strlen(argv[i+1])) * sizeof(char));
+    strcpy(str[*l], argv[i+1]);
     memset(argv[i+1], '\0', strlen(argv[i+1]));
     }
     *l+=1; // l = numOfpatterns
@@ -223,3 +227,4 @@ int numberOfFiles(int argc, char** argv) {
     }
     return numfiles;
 }
+
