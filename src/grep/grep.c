@@ -51,11 +51,13 @@ int main(int argc, char** argv) {
             strcpy(nameOfFile, argv[currentFile]);
              if (f != NULL) {
                  reader(f, grepFunc, patterns, opt, cntFilesForSearch, nameOfFile, &counter, numOfpatterns);
-                 if (opt.c_flag) {
+                 if (opt.c_flag  && !opt.l_flag) {
                      if(cntFilesForSearch > 1 && !opt.h_flag)
                          printf("%s:", nameOfFile);
                      printf("%d\n", counter);
                  }
+                 if (opt.v_flag)
+                     printf("\n");
                  fclose(f);
              } else {
                  if(!opt.s_flag) {
@@ -105,9 +107,13 @@ void reader(FILE *f, int (*grep)(char*, char**, grepOptions, int), char** patter
     while((read = getline(&buffer, &len, f)) != -1) {
 //        printf("CHECK = %d", check);
 //        check++;
-        if(grep(buffer, patterns, opt, numOfpatterns) == 1) {
+        if((grep(buffer, patterns, opt, numOfpatterns) == 1) && !opt.v_flag) {
             if (opt.c_flag) {
                 *counter+=1;
+                if (opt.l_flag) {
+                    printf("%s:%d\n%s\n", nameOfFile, *counter, nameOfFile);
+                    break;
+                }
             } else {
              if(!opt.l_flag) {
               if (opt.n_flag) {
@@ -124,6 +130,19 @@ void reader(FILE *f, int (*grep)(char*, char**, grepOptions, int), char** patter
                  break;  //  заменить?
              }
            }
+        } else {
+            if ((grep(buffer, patterns, opt, numOfpatterns) == 0)) {
+                if (!opt.c_flag && !opt.l_flag) {
+                    if(cntFilesForSearch > 1)
+                        printf("%s:", nameOfFile);
+                    printf("%s", buffer);
+                } else if (opt.c_flag) {
+                    *counter+=1;
+                } else if (opt.l_flag){
+                    printf("%s\n", nameOfFile);
+                    break;
+                }
+            }
         }
         num++;
     }
