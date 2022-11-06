@@ -30,12 +30,8 @@ void patternsFromFile(int PatternFiles, char** fileForF, int *l, char** patterns
 int main(int argc, char** argv) {
     FILE *f;
     char* nameOfFile = NULL;  // nameOfFile нужен чтоб печатать названия файла перед строкой для нескольких файлов
-    char* fileForF[100]; //  названия файлов для флага -f поменять на динамический чтобы не использовать лишнюю память
-    char* patterns[100];  // поменять на динамический чтобы не использовать лишнюю память + в файле мб много паттернов
-    for (int i = 0; i < 100; i++) {
-        patterns[i] = NULL;
-        fileForF[i] = NULL;
-    }
+    char* fileForF[100] = {0}; //  названия файлов для флага -f поменять на динамический чтобы не использовать лишнюю память
+    char* patterns[100]= {0};  // поменять на динамический чтобы не использовать лишнюю память + в файле мб много паттернов
     grepOptions opt = {0};
     int numOfpatterns = 0;  // количество шаблонов для поиска
     int PatternFiles = 0;  // количество файлов, содержащих шаблоны для поиска
@@ -62,8 +58,10 @@ int main(int argc, char** argv) {
                  }
                  fclose(f);
              } else {
+                 if(!opt.s_flag) {
                  fprintf(stderr, "grep: %s: No such file or directory\n",
                      argv[currentFile]);  // поменять на return 0 и добавить в output - если !input то печатать  эту ошибку
+                 }
              }
         }
      currentFile++;
@@ -80,17 +78,21 @@ int main(int argc, char** argv) {
 
 int grepFunc(char *line, char** patterns, grepOptions opt, int numOfpatterns) {
     regex_t reg;
-    regmatch_t match[5];  // сколько указать? - не указывать []
+    regmatch_t match[5];  //  не указывать []
     int r, result = 0;
+//    printf("numOfpatterns = %d\n", numOfpatterns);
     for(int i = 0; i < numOfpatterns; i++) {
         regcomp(&reg, patterns[i], opt.i_flag ? REG_ICASE | REG_EXTENDED : REG_EXTENDED);
+//        printf("Pattern[%d] = %s\n", i, patterns[i]);
+//        printf("line = %s\n", line);
         r = regexec(&reg, line, 5, match, 0);
+//        printf("regex0? = %d\n", r);
         if(r == 0) {
             result =  1;
         }
         regfree(&reg);
     }
-    return result;
+    return result;  // убрать result и возвращать r  + поменять условие в reader на == 0
 }
 
 
@@ -99,11 +101,15 @@ void reader(FILE *f, int (*grep)(char*, char**, grepOptions, int), char** patter
     size_t len = 0;
     ssize_t read;
     int num = 1;
+//    int check = 1;
     while((read = getline(&buffer, &len, f)) != -1) {
+//        printf("CHECK = %d", check);
+//        check++;
         if(grep(buffer, patterns, opt, numOfpatterns) == 1) {
             if (opt.c_flag) {
                 *counter+=1;
             } else {
+             if(!opt.l_flag) {
               if (opt.n_flag) {
                 if(cntFilesForSearch > 1 && !opt.h_flag)
                     printf("%s:", nameOfFile);
@@ -112,7 +118,11 @@ void reader(FILE *f, int (*grep)(char*, char**, grepOptions, int), char** patter
                 if(cntFilesForSearch > 1  && !opt.h_flag)
                     printf("%s:", nameOfFile);
                 printf("%s", buffer);
-            }
+              }
+             } else {
+                 printf("%s\n", nameOfFile);
+                 break;  //  заменить?
+             }
            }
         }
         num++;
@@ -169,7 +179,7 @@ int parser(grepOptions *opt, int i, char** argv, int *numOfpatterns, char** patt
       case 'f':
         opt->f_flag = 1;
         getPatternEOrFileF(argv, i, k, PatternFiles, fileForF);
-//        patternsFromFile(*PatternFiles, fileForF, numOfpatterns, patterns);
+        patternsFromFile(*PatternFiles, fileForF, numOfpatterns, patterns);
         break;
       case 'o':
         opt->o_flag = 1;
@@ -236,30 +246,44 @@ int numberOfFiles(int argc, char** argv) {
     return numfiles;
 }
 
-//void patternsFromFile(int PatternFiles, char** fileForF, int *l, char** patterns) {
-//    FILE *f;
-//    char* buffer = NULL;
-//    size_t len = 0;
-//    ssize_t read;
+
+//  доработать -f, работает не всегда корректно:s
+void patternsFromFile(int PatternFiles, char** fileForF, int *l, char** patterns) {
+    FILE *f;
+    char* buffer = NULL;
+    size_t len = 0;
+    ssize_t read;
 //    printf("file: %s\n", fileForF[0]);
-//    printf("numofpatterns = %d", *l);
-//    printf("PatternFiles = %d", PatternFiles);
-//    for(int i = 0; i < PatternFiles; i++) {
+//    printf("numofpatterns = %d\n", *l);
+//    printf("PatternFiles = %d\n", PatternFiles);
+    for(int i = 0; i < PatternFiles; i++) {
 //        printf("!numofpatterns = %d", *l);
-//      f = fopen(fileForF[i], "r");
-//        if (f != NULL) {
+        f = fopen(fileForF[i], "r");
+        if (f != NULL) {
+          while((read = getline(&buffer, &len, f)) != -1) {
+//              printf("%d\n", *l);
+              patterns[*l] = malloc((strlen(buffer) + 3) * sizeof(char));
+            strcpy(patterns[*l], buffer);
+//              int k = 0, m = 0;
+//              patterns[*l][m] = '"';
+//              while(k < (int)strlen(buffer) - 1) {
+//                    m++;
+//                    patterns[*l][m] = buffer[k];
+//                    k++;
 //
-//            while((read = getline(&buffer, &len, f)) != -1) {
-//            patterns[*l] = realloc((patterns[*l]), ((strlen(buffer)) * sizeof(char)));
-//            strcpy(patterns[*l], buffer);
-//
-//            free(buffer);
-//            *l+=1;
-//            }
-//            fclose(f);
-//        } else {
-//            fprintf(stderr, "grep: %s: No such file or directory\n",
-//                    fileForF[i]);  // поменять на return 0 и добавить в output - если !input то печатать  эту ошибку
-//        }
-//    }
-//}
+//              }
+//              m++;
+//              patterns[*l][m] = '"';
+              
+//              patterns[*l][m+1] = '\0';
+//            printf("Pattern = %s\n", patterns[*l]);
+            *l = *l + 1;
+         }
+            free(buffer);
+            fclose(f);
+        } else {
+            fprintf(stderr, "grep: %s: No such file or directory\n",
+                    fileForF[i]);  // поменять на return 0 и добавить в output - если !input то печатать  эту ошибку
+        }
+    }
+}
