@@ -19,8 +19,8 @@ typedef struct {
 
 
 int patternWithoutE (int argc, char** argv, char** patterns);
-int grepFunc(char *line, char** patterns, grepOptions opt, int numOfpatterns, int* counter);
-void reader(FILE *f, int (*grep)(char*, char**, grepOptions, int, int*), char** patterns, grepOptions opt, int cntFilesForSearch, char* nameOfFile, int* counter,  int numOfpatterns);
+int grepFunc(char *line, char** patterns, grepOptions opt, int numOfpatterns, int* counter, int* match);
+void reader(FILE *f, int (*grep)(char*, char**, grepOptions, int, int*, int*), char** patterns, grepOptions opt, int cntFilesForSearch, char* nameOfFile, int* counter,  int numOfpatterns);
 int getOption(int argc, char** argv, grepOptions *opt, char** patterns, int *numOfpatterns, char** fileForF, int* PatternFiles);
 int parser(grepOptions *opt, int i, char** argv, int *numOfpatterns, char** patterns, char** fileForF, int* PatternFiles, int argc);
 void getPatternEOrFileF(char** argv, int i, int k, int* l, char** str);
@@ -30,8 +30,8 @@ void patternsFromFile(int PatternFiles, char** fileForF, int *l, char** patterns
 void oFunc(char *line, char** patterns, grepOptions opt, int numOfpatterns);
 void print(char* buffer);
 
+
 int main(int argc, char** argv) {
-    FILE *f;
     char* fileForF[100] = {0}; //  названия файлов для флага -f поменять на динамический чтобы не использовать лишнюю память
     char* patterns[100]= {0};  // поменять на динамический чтобы не использовать лишнюю память + в файле мб много паттернов
     grepOptions opt = {0};
@@ -42,36 +42,6 @@ int main(int argc, char** argv) {
       patternWithoutE (argc, argv, patterns);
       numOfpatterns = 1;
     }
-    int cntFilesForSearch = numberOfFiles(argc, argv);
-    int currentFile = 1;
-    while (currentFile < argc) {
-        if (argv[currentFile][0] != '\0') {
-            f = fopen(argv[currentFile], "rb");
-            int counter = 0; //  для фалага -с
-            if (f != NULL) {
-                 reader(f, grepFunc, patterns, opt, cntFilesForSearch, argv[currentFile], &counter, numOfpatterns);
-//                printf("COUNTER = %d\nflag l = %d\n", counter, opt.l_flag);
-                 if (opt.c_flag) {
-                     if(cntFilesForSearch > 1 && !opt.h_flag)
-                         printf("%s:", argv[currentFile]);
-                     printf("%d\n", counter);
-                 }
-                 if (counter && opt.l_flag && !opt.c_flag){
-                    printf("%s\n", argv[currentFile]);
-                }
-                 fclose(f);
-             } else {
-                 if(!opt.s_flag) {
-                 fprintf(stderr, "grep: %s: No such file or directory\n",
-                     argv[currentFile]);  // поменять на return 0 и добавить в output - если !input то печатать  эту ошибку
-                 }
-             }
-        }
-     currentFile++;
-    }
-//    if(printSpace && !opt.c_flag && !opt.l_flag && opt.v_flag)
-//      printf("\n");
-//    printf("file: %s\n", fileForF[1]);
     for (int i = 0; i < numOfpatterns; i++)  {
         free(patterns[i]);
     }
@@ -82,84 +52,91 @@ int main(int argc, char** argv) {
 }
 
 
-int grepFunc(char *line, char** patterns, grepOptions opt, int numOfpatterns, int* counter) {
-    regex_t reg;
-    regmatch_t match[5];  //  не указывать []
-    int r, result = 0;
-//    printf("numOfpatterns = %d\n", numOfpatterns);
-    for(int i = 0; i < numOfpatterns; i++) {
-        regcomp(&reg, patterns[i], opt.i_flag ? REG_ICASE | REG_EXTENDED : REG_EXTENDED);
-//        printf("Pattern[%d] = %s\n", i, patterns[i]);
-//        printf("line = %s\n", line);
-        r = regexec(&reg, line, 5, match, 0);
-//        printf("regex0? = %d\n", r);
-        if(r == 0) {
-            result =  1;
-            if (!opt.v_flag) {
-                *counter +=1;
-                if (opt.l_flag)
-                    *counter = 1;
-            }
-        } else {
-            if (opt.v_flag) {
-                *counter +=1;
-                if (opt.l_flag)
-                    *counter = 1;
-            }
+
+int grepFunc(char *line, char** patterns, grepOptions opt, int numOfpatterns, int* counter, int* isMatch) {
+    int r = 0, res = 0;
+    if(strcmp(patterns[i], ".") == 0) {
+        r = regcomp(&reg, patterns[i], REG_NEWLINE);
+    } else {
+        r = regcomp(&reg, patterns[i], opt.i_flag ? REG_ICASE | REG_EXTENDED : REG_EXTENDED);
+    }
+    if (r == 0) {
+        res = regexec(&reg, line, 0, NULL, 0);
+        if(res == 0) {
+            *isMatch = 1;
         }
         regfree(&reg);
     }
-    return result;  // убрать result и возвращать r  + поменять условие в reader на == 0
 }
 
 
-void reader(FILE *f, int (*grep)(char*, char**, grepOptions, int, int*), char** patterns, grepOptions opt, int cntFilesForSearch, char* nameOfFile, int* counter,  int numOfpatterns) {
+
+void reader() {
+    FILE *f = NULL;
     char* buffer = NULL;
     size_t len = 0;
     ssize_t read;
     int num = 1;
-    while((read = getline(&buffer, &len, f)) != -1) {
-        if((grep(buffer, patterns, opt, numOfpatterns, counter) == 1) && !opt.v_flag && !opt.o_flag) {
-                if (!opt.c_flag && !opt.l_flag) {
-                    if(cntFilesForSearch > 1 && !opt.h_flag)
-                        printf("%s:", nameOfFile);
-                    if(opt.n_flag)
-                        printf("%d:", num);
-                    print(buffer);
+    int match = 0;
+    regex_t reg;
+    
+    int cntFilesForSearch = numberOfFiles(argc, argv);
+    int currentFile = 1;
+    while (currentFile < argc) {
+        if (argv[currentFile][0] != '\0') {
+            f = fopen(argv[currentFile], "rb");
+            int counter = 0; //  для фалага -с
+            if (f != NULL) {
+                while((read = getline(&buffer, &len, f)) != -1) {
+                    match = 0;
+                    for(int i = 0; i < numOfpatterns && *isMatch == 0; i++) {
+                        grep(reg, buffer, patterns[i], opt, &match);
+                    }
+                    if(opt.v_flag)
+                        v_flag(&match);
+                    if(opt.c_flag || opt.l_flag)
+                        cl_flag();
+                    num++;
                 }
-//                else if (opt.c_flag && !opt.l_flag) {
-//                    *counter+=1;
-//                } else if (opt.l_flag && opt.c_flag) {
-//                    *counter = 1;
-//                }
-                
-                //{
-//                    *printSpace = 1;
-//                } else
-//                    *printSpace = 0;
-        } else if(opt.v_flag && !opt.o_flag) {  // -v флаг
-            if ((grep(buffer, patterns, opt, numOfpatterns, counter) == 0)) {
-                if (!opt.c_flag && !opt.l_flag) {
-                    if(cntFilesForSearch > 1 && !opt.h_flag)
-                        printf("%s:", nameOfFile);
-                    if(opt.n_flag)
-                        printf("%d:", num);
-                    print(buffer);
-                }
-//                else if (opt.c_flag && !opt.l_flag) {
-//                    *counter+=1;
-//                } else if (opt.l_flag) {
-//                    *counter = 1;
-//                }
-            }
-            
-        } else if(opt.o_flag) {
-            oFunc(buffer, patterns, opt, numOfpatterns);
+                if(buffer)
+                    free(buffer);
+                fclose(f);
+             } else {
+                 if(!opt.s_flag) {
+                 fprintf(stderr, "grep: %s: No such file or directory\n",
+                     argv[currentFile]);  // поменять на return 0 и добавить в output - если !input то печатать  эту ошибку
+                 }
+             }
         }
-        num++;
+     currentFile++;
     }
-    if(buffer)
-        free(buffer);
+    if(opt.c_flag || opt.l_flag)
+        cl_output();
+}
+    
+void v_flag(int* match) {
+    if(*match == 1)
+        *match = 0;
+    else
+        *match = 1;
+}
+
+void cl_flag(int match, int* counter) {
+    if(match)
+        counter += 1;
+}
+
+void cl_output() {
+    
+}
+
+
+void output(int cntFilesForSearch, grepOptions opt) {
+    if(cntFilesForSearch > 1 && !opt.h_flag)
+        printf("%s:", nameOfFile);
+    if(opt.n_flag)
+        printf("%d:", num);
+    print(buffer);
 }
 
 void print(char* buffer) {
