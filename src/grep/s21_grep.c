@@ -19,8 +19,8 @@ typedef struct {
 
 
 int patternWithoutE (int argc, char** argv, char** patterns);
-int grepFunc(char *line, char** patterns, grepOptions opt, int numOfpatterns);
-void reader(FILE *f, int (*grep)(char*, char**, grepOptions, int), char** patterns, grepOptions opt, int cntFilesForSearch, char* nameOfFile, int* counter,  int numOfpatterns);
+int grepFunc(char *line, char** patterns, grepOptions opt, int numOfpatterns, int* counter);
+void reader(FILE *f, int (*grep)(char*, char**, grepOptions, int, int*), char** patterns, grepOptions opt, int cntFilesForSearch, char* nameOfFile, int* counter,  int numOfpatterns);
 int getOption(int argc, char** argv, grepOptions *opt, char** patterns, int *numOfpatterns, char** fileForF, int* PatternFiles);
 int parser(grepOptions *opt, int i, char** argv, int *numOfpatterns, char** patterns, char** fileForF, int* PatternFiles, int argc);
 void getPatternEOrFileF(char** argv, int i, int k, int* l, char** str);
@@ -50,13 +50,14 @@ int main(int argc, char** argv) {
             int counter = 0; //  для фалага -с
             if (f != NULL) {
                  reader(f, grepFunc, patterns, opt, cntFilesForSearch, argv[currentFile], &counter, numOfpatterns);
+//                printf("COUNTER = %d\nflag l = %d\n", counter, opt.l_flag);
                  if (opt.c_flag) {
                      if(cntFilesForSearch > 1 && !opt.h_flag)
                          printf("%s:", argv[currentFile]);
                      printf("%d\n", counter);
                  }
-                 if (opt.l_flag){
-                    printf("%s", argv[currentFile]);
+                 if (counter && opt.l_flag && !opt.c_flag){
+                    printf("%s\n", argv[currentFile]);
                 }
                  fclose(f);
              } else {
@@ -81,7 +82,7 @@ int main(int argc, char** argv) {
 }
 
 
-int grepFunc(char *line, char** patterns, grepOptions opt, int numOfpatterns) {
+int grepFunc(char *line, char** patterns, grepOptions opt, int numOfpatterns, int* counter) {
     regex_t reg;
     regmatch_t match[5];  //  не указывать []
     int r, result = 0;
@@ -94,6 +95,17 @@ int grepFunc(char *line, char** patterns, grepOptions opt, int numOfpatterns) {
 //        printf("regex0? = %d\n", r);
         if(r == 0) {
             result =  1;
+            if (!opt.v_flag) {
+                *counter +=1;
+                if (opt.l_flag)
+                    *counter = 1;
+            }
+        } else {
+            if (opt.v_flag) {
+                *counter +=1;
+                if (opt.l_flag)
+                    *counter = 1;
+            }
         }
         regfree(&reg);
     }
@@ -101,42 +113,44 @@ int grepFunc(char *line, char** patterns, grepOptions opt, int numOfpatterns) {
 }
 
 
-void reader(FILE *f, int (*grep)(char*, char**, grepOptions, int), char** patterns, grepOptions opt, int cntFilesForSearch, char* nameOfFile, int* counter,  int numOfpatterns) {
+void reader(FILE *f, int (*grep)(char*, char**, grepOptions, int, int*), char** patterns, grepOptions opt, int cntFilesForSearch, char* nameOfFile, int* counter,  int numOfpatterns) {
     char* buffer = NULL;
     size_t len = 0;
     ssize_t read;
     int num = 1;
     while((read = getline(&buffer, &len, f)) != -1) {
-        if((grep(buffer, patterns, opt, numOfpatterns) == 1) && !opt.v_flag && !opt.o_flag) {
+        if((grep(buffer, patterns, opt, numOfpatterns, counter) == 1) && !opt.v_flag && !opt.o_flag) {
                 if (!opt.c_flag && !opt.l_flag) {
                     if(cntFilesForSearch > 1 && !opt.h_flag)
                         printf("%s:", nameOfFile);
                     if(opt.n_flag)
                         printf("%d:", num);
                     print(buffer);
-                } else if (opt.c_flag && !opt.l_flag) {
-                    *counter+=1;
-                } else if (opt.l_flag && opt.c_flag) {
-                    *counter = 1;
                 }
+//                else if (opt.c_flag && !opt.l_flag) {
+//                    *counter+=1;
+//                } else if (opt.l_flag && opt.c_flag) {
+//                    *counter = 1;
+//                }
                 
                 //{
 //                    *printSpace = 1;
 //                } else
 //                    *printSpace = 0;
         } else if(opt.v_flag && !opt.o_flag) {  // -v флаг
-            if ((grep(buffer, patterns, opt, numOfpatterns) == 0)) {
+            if ((grep(buffer, patterns, opt, numOfpatterns, counter) == 0)) {
                 if (!opt.c_flag && !opt.l_flag) {
                     if(cntFilesForSearch > 1 && !opt.h_flag)
                         printf("%s:", nameOfFile);
                     if(opt.n_flag)
                         printf("%d:", num);
                     print(buffer);
-                } else if (opt.c_flag && !opt.l_flag) {
-                    *counter+=1;
-                } else if (opt.l_flag && opt.c_flag) {
-                    *counter = 1;
                 }
+//                else if (opt.c_flag && !opt.l_flag) {
+//                    *counter+=1;
+//                } else if (opt.l_flag) {
+//                    *counter = 1;
+//                }
             }
             
         } else if(opt.o_flag) {
