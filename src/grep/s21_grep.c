@@ -19,8 +19,12 @@ typedef struct {
 
 
 int patternWithoutE (int argc, char** argv, char** patterns);
-int grepFunc(char *line, char** patterns, grepOptions opt, int numOfpatterns, int* counter, int* match);
-void reader(FILE *f, int (*grep)(char*, char**, grepOptions, int, int*, int*), char** patterns, grepOptions opt, int cntFilesForSearch, char* nameOfFile, int* counter,  int numOfpatterns);
+void grepFunc(char *line, char* patterns, grepOptions opt, int* isMatch, regex_t reg);
+void reader(int argc, char** argv, grepOptions opt, int numOfpatterns, char** patterns);
+void v_flag(int* match);
+void cl_flag(int match, int* counter, grepOptions opt);
+void cl_output(grepOptions opt, int cntFilesForSearch, char* nameOfFile, int counter);
+void output(int cntFilesForSearch, grepOptions opt, char* nameOfFile, int num, char* buffer, int match);
 int getOption(int argc, char** argv, grepOptions *opt, char** patterns, int *numOfpatterns, char** fileForF, int* PatternFiles);
 int parser(grepOptions *opt, int i, char** argv, int *numOfpatterns, char** patterns, char** fileForF, int* PatternFiles, int argc);
 void getPatternEOrFileF(char** argv, int i, int k, int* l, char** str);
@@ -42,6 +46,8 @@ int main(int argc, char** argv) {
       patternWithoutE (argc, argv, patterns);
       numOfpatterns = 1;
     }
+    
+    reader(argc, argv, opt, numOfpatterns, patterns);
     for (int i = 0; i < numOfpatterns; i++)  {
         free(patterns[i]);
     }
@@ -53,17 +59,20 @@ int main(int argc, char** argv) {
 
 
 
-int grepFunc(char *line, char** patterns, grepOptions opt, int numOfpatterns, int* counter, int* isMatch) {
+void grepFunc(char *line, char* patterns, grepOptions opt, int* isMatch, regex_t reg) {
     int r = 0, res = 0;
-    if(strcmp(patterns[i], ".") == 0) {
-        r = regcomp(&reg, patterns[i], REG_NEWLINE);
+    if(strcmp(patterns, ".") == 0) {
+        r = regcomp(&reg, patterns, REG_NEWLINE);
     } else {
-        r = regcomp(&reg, patterns[i], opt.i_flag ? REG_ICASE | REG_EXTENDED : REG_EXTENDED);
+        r = regcomp(&reg, patterns, opt.i_flag ? REG_ICASE | REG_EXTENDED : REG_EXTENDED);
+//        printf("r = %d, ", r);
     }
     if (r == 0) {
         res = regexec(&reg, line, 0, NULL, 0);
+//        printf("regex = %d, ", res);
         if(res == 0) {
             *isMatch = 1;
+//            printf("match = %d\n", *isMatch);
         }
         regfree(&reg);
     }
@@ -71,31 +80,39 @@ int grepFunc(char *line, char** patterns, grepOptions opt, int numOfpatterns, in
 
 
 
-void reader() {
+void reader(int argc, char** argv, grepOptions opt, int numOfpatterns, char** patterns) {
     FILE *f = NULL;
-    char* buffer = NULL;
+    
     size_t len = 0;
     ssize_t read;
     int num = 1;
     int match = 0;
+    int counter = 0;
     regex_t reg;
-    
     int cntFilesForSearch = numberOfFiles(argc, argv);
     int currentFile = 1;
     while (currentFile < argc) {
         if (argv[currentFile][0] != '\0') {
             f = fopen(argv[currentFile], "rb");
-            int counter = 0; //  для фалага -с
+            counter = 0; //  для фалага -с
             if (f != NULL) {
+                char* buffer = NULL;
                 while((read = getline(&buffer, &len, f)) != -1) {
                     match = 0;
-                    for(int i = 0; i < numOfpatterns && *isMatch == 0; i++) {
-                        grep(reg, buffer, patterns[i], opt, &match);
+                    for(int i = 0; i < numOfpatterns && match == 0; i++) {
+//                        printf("pattern: %s, ", patterns[i]);
+                        grepFunc(buffer, patterns[i], opt, &match, reg);
+//                        printf("match = %d\n", match);
                     }
                     if(opt.v_flag)
                         v_flag(&match);
                     if(opt.c_flag || opt.l_flag)
-                        cl_flag();
+                        cl_flag(match, &counter, opt);
+                    if(!opt.c_flag && !opt.l_flag && !opt.o_flag)
+                        output(cntFilesForSearch, opt, argv[currentFile], num, buffer, match);
+                    if(opt.o_flag) {
+                        oFunc(buffer, patterns, opt, numOfpatterns);
+                    }
                     num++;
                 }
                 if(buffer)
@@ -111,7 +128,8 @@ void reader() {
      currentFile++;
     }
     if(opt.c_flag || opt.l_flag)
-        cl_output();
+        cl_output(opt, cntFilesForSearch, argv[currentFile], counter);
+    
 }
     
 void v_flag(int* match) {
@@ -121,22 +139,33 @@ void v_flag(int* match) {
         *match = 1;
 }
 
-void cl_flag(int match, int* counter) {
+void cl_flag(int match, int* counter, grepOptions opt) {
     if(match)
-        counter += 1;
+        *counter += 1;
+    if(opt.l_flag)
+        *counter = 1;
 }
 
-void cl_output() {
-    
+void cl_output(grepOptions opt, int cntFilesForSearch, char* nameOfFile, int counter) {
+    if (opt.c_flag) {
+        if(cntFilesForSearch > 1 && !opt.h_flag)
+            printf("%s:", nameOfFile);
+        printf("%d\n", counter);
+    }
+    if (counter && opt.l_flag && !opt.c_flag){
+       printf("%s\n", nameOfFile);
+   }
 }
 
 
-void output(int cntFilesForSearch, grepOptions opt) {
-    if(cntFilesForSearch > 1 && !opt.h_flag)
-        printf("%s:", nameOfFile);
-    if(opt.n_flag)
-        printf("%d:", num);
-    print(buffer);
+void output(int cntFilesForSearch, grepOptions opt, char* nameOfFile, int num, char* buffer, int match) {
+    if(match) {
+        if(cntFilesForSearch > 1 && !opt.h_flag)
+            printf("%s:", nameOfFile);
+        if(opt.n_flag)
+            printf("%d:", num);
+        print(buffer);
+    }
 }
 
 void print(char* buffer) {
