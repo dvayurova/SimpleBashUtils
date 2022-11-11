@@ -156,7 +156,7 @@ void cl_output(grepOptions opt, int cntFilesForSearch, char* nameOfFile, int cou
                 printf("%s:", nameOfFile);
             printf("%d\n", counter);
         }
-        if (counter && opt.l_flag && !opt.c_flag){
+        if (counter && opt.l_flag){
             printf("%s\n", nameOfFile);
         }
 }
