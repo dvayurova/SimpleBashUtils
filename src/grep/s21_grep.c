@@ -31,7 +31,7 @@ void getPatternEOrFileF(char** argv, int i, int k, int* l, char** str);
 void copyEOstr (char *dest, char *src, int k);
 int numberOfFiles(int argc, char** argv);
 void patternsFromFile(int PatternFiles, char** fileForF, int *l, char** patterns);
-void oFunc(char *line, char** patterns, grepOptions opt, int numOfpatterns);
+void oFunc(char *line, char** patterns, grepOptions opt, int numOfpatterns, int *isMatch, regmatch_t *pmatch);
 void print(char* buffer);
 
 
@@ -82,13 +82,13 @@ void grepFunc(char *line, char* patterns, grepOptions opt, int* isMatch, regex_t
 
 void reader(int argc, char** argv, grepOptions opt, int numOfpatterns, char** patterns) {
     FILE *f = NULL;
-    
     size_t len = 0;
     ssize_t read;
     int num = 1;
     int match = 0;
     int counter = 0;
     regex_t reg;
+    regmatch_t pmatch;
     int cntFilesForSearch = numberOfFiles(argc, argv);
     int currentFile = 1;
     while (currentFile < argc) {
@@ -97,6 +97,7 @@ void reader(int argc, char** argv, grepOptions opt, int numOfpatterns, char** pa
             counter = 0; //  для фалага -с
             if (f != NULL) {
                 char* buffer = NULL;
+                num = 1;
                 while((read = getline(&buffer, &len, f)) != -1) {
                     match = 0;
                     for(int i = 0; i < numOfpatterns && match == 0; i++) {
@@ -111,7 +112,9 @@ void reader(int argc, char** argv, grepOptions opt, int numOfpatterns, char** pa
                     if(!opt.c_flag && !opt.l_flag && !opt.o_flag)
                         output(cntFilesForSearch, opt, argv[currentFile], num, buffer, match);
                     if(opt.o_flag) {
-                        oFunc(buffer, patterns, opt, numOfpatterns);
+                        if(opt.n_flag && match)
+                            printf("%d:", num);
+                        oFunc(buffer, patterns, opt, numOfpatterns, &match, &pmatch);
                     }
                     num++;
                 }
@@ -124,12 +127,12 @@ void reader(int argc, char** argv, grepOptions opt, int numOfpatterns, char** pa
                      argv[currentFile]);  // поменять на return 0 и добавить в output - если !input то печатать  эту ошибку
                  }
              }
+            if(opt.c_flag || opt.l_flag)
+                cl_output(opt, cntFilesForSearch, argv[currentFile], counter);
         }
+        
      currentFile++;
     }
-    if(opt.c_flag || opt.l_flag)
-        cl_output(opt, cntFilesForSearch, argv[currentFile], counter);
-    
 }
     
 void v_flag(int* match) {
@@ -147,14 +150,14 @@ void cl_flag(int match, int* counter, grepOptions opt) {
 }
 
 void cl_output(grepOptions opt, int cntFilesForSearch, char* nameOfFile, int counter) {
-    if (opt.c_flag) {
-        if(cntFilesForSearch > 1 && !opt.h_flag)
-            printf("%s:", nameOfFile);
-        printf("%d\n", counter);
-    }
-    if (counter && opt.l_flag && !opt.c_flag){
-       printf("%s\n", nameOfFile);
-   }
+        if (opt.c_flag) {
+            if(cntFilesForSearch > 1 && !opt.h_flag)
+                printf("%s:", nameOfFile);
+            printf("%d\n", counter);
+        }
+        if (counter && opt.l_flag && !opt.c_flag){
+            printf("%s\n", nameOfFile);
+        }
 }
 
 
@@ -319,21 +322,22 @@ void patternsFromFile(int PatternFiles, char** fileForF, int *l, char** patterns
 }
 
 
-void oFunc(char *line, char** patterns, grepOptions opt, int numOfpatterns) {
+void oFunc(char *line, char** patterns, grepOptions opt, int numOfpatterns, int *isMatch, regmatch_t *pmatch) {
     int r = 0, index = 0;
-    regmatch_t match;  //  не указывать []
+    
     for(int i = 0; i < numOfpatterns; i++) {
         do {
             regex_t reg;
             regcomp(&reg, patterns[i], opt.i_flag ? REG_ICASE : 0);
-            r = regexec(&reg, line + index, 1, &match, 0);
+            r = regexec(&reg, line + index, 1, pmatch, 0);
             if(r == 0) {
-                for(int j = index + match.rm_so; j < index + match.rm_eo; j++) {
+                *isMatch = 1;
+                for(int j = index + pmatch->rm_so; j < index + pmatch->rm_eo; j++) {
                     printf("%c", line[j]);
                 }
                 printf("\n");
             }
-            index += match.rm_eo;
+            index += pmatch->rm_eo;
             regfree(&reg);
         } while(r == 0);
     }
