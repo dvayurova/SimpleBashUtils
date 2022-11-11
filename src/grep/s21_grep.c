@@ -143,10 +143,11 @@ void v_flag(int* match) {
 }
 
 void cl_flag(int match, int* counter, grepOptions opt) {
-    if(match)
+    if(match) {
         *counter += 1;
-    if(opt.l_flag)
-        *counter = 1;
+        if(opt.l_flag)
+            *counter = 1;
+    }
 }
 
 void cl_output(grepOptions opt, int cntFilesForSearch, char* nameOfFile, int counter) {
