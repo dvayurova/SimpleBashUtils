@@ -25,7 +25,7 @@ void v_flag(int* match);
 void cl_flag(int match, int* counter, grepOptions opt);
 void cl_output(grepOptions opt, int cntFilesForSearch, char* nameOfFile, int counter);
 void output(int cntFilesForSearch, grepOptions opt, char* nameOfFile, int num, char* buffer, int match);
-int getOption(int argc, char** argv, grepOptions *opt, char** patterns, int *numOfpatterns, char** fileForF, int* PatternFiles, int* emptystr, int* err, char* inv_opt);
+void getOption(int argc, char** argv, grepOptions *opt, char** patterns, int *numOfpatterns, char** fileForF, int* PatternFiles, int* emptystr, int* err, char* inv_opt);
 int parser(grepOptions *opt, int i, char** argv, int *numOfpatterns, char** patterns, char** fileForF, int* PatternFiles, int argc, int* emptystr, int* err, char* inv_opt);
 void getPatternEOrFileF(char** argv, int i, int k, int* l, char** str);
 void copyEOstr (char *dest, char *src, int k);
@@ -33,41 +33,47 @@ int numberOfFiles(int argc, char** argv);
 void patternsFromFile(int PatternFiles, char** fileForF, int *l, char** patterns, int* emptystr);
 void oFunc(char *line, char** patterns, grepOptions opt, int numOfpatterns, int *isMatch, regmatch_t *pmatch);
 void print(char* buffer);
-
+int correctInput(int argc, int err, char inv_opt);
+void cleanMemory(int numOfpatterns, char** patterns, char** fileForF);
 
 int main(int argc, char** argv) {
-    if(argc == 1){
-        printf("usage: grep [-ivclnhs] [-e pattern] [-f file] [--null] [pattern] [file ...]");
-    }
     char* fileForF[100] = {0}; //  названия файлов для флага -f поменять на динамический чтобы не использовать лишнюю память
     char* patterns[100]= {0};  // поменять на динамический чтобы не использовать лишнюю память + в файле мб много паттернов
     grepOptions opt = {0};
     int numOfpatterns = 0;  // количество шаблонов для поиска
     int PatternFiles = 0;  // количество файлов, содержащих шаблоны для поиска
     int emptystr = 0;
-    int err = 1;
+    int err = 0;
     char inv_opt;
     getOption(argc, argv, &opt, patterns, &numOfpatterns, fileForF, &PatternFiles, &emptystr, &err, &inv_opt);
-    if(err) {
+    if(correctInput(argc, err, inv_opt)) {
         if(opt.e_flag == 0 && opt.f_flag == 0) {
             patternWithoutE (argc, argv, patterns);
             numOfpatterns = 1;
         }
         reader(argc, argv, opt, numOfpatterns, patterns, emptystr);
-    } else {
-        printf("grep: invalid option -- %c\nusage: grep [-ivclnhs]\n"
-               "[-e pattern] [-f file] [--null] [pattern] [file ...]", inv_opt);
     }
-    for (int i = 0; i < numOfpatterns; i++)  {
-        free(patterns[i]);
-    }
-    for (int i = 0; i < 100; i++)  {
-        free(fileForF[i]); // исправить
-    }
+    cleanMemory(numOfpatterns, patterns, fileForF);
     return 0;
 }
 
-
+int correctInput(int argc, int err, char inv_opt) {
+    int res = 1;
+    if(argc == 1 || err) {
+        res = 0;
+        if(!err) {
+            printf("usage: grep [-ivclnhs] [-e pattern] [-f file] [--null] [pattern] [file ...]");
+        } else {
+            if(err == 1) {
+                printf("grep: invalid option -- %c\nusage: grep [-ivclnhs]\n"
+                       "[-e pattern] [-f file] [--null] [pattern] [file ...]", inv_opt);
+            } else if(err == 2) {
+                printf("grep: option requires an argument");
+            }
+        }
+    }
+    return res;
+}
 
 void grepFunc(char *line, char* patterns, grepOptions opt, int* isMatch, regex_t reg) {
     int r = 0, res = 0;
@@ -181,7 +187,7 @@ void print(char* buffer) {
     }
 }
 
-int getOption(int argc, char** argv, grepOptions *opt, char** patterns, int *numOfpatterns, char** fileForF, int* PatternFiles, int* emptystr, int* err, char* inv_opt) {
+void getOption(int argc, char** argv, grepOptions *opt, char** patterns, int *numOfpatterns, char** fileForF, int* PatternFiles, int* emptystr, int* err, char* inv_opt) {
     int i = 1;
     while(i < argc) {
         if(argv[i][0] == '-') {
@@ -190,56 +196,50 @@ int getOption(int argc, char** argv, grepOptions *opt, char** patterns, int *num
         }
         i++;
     }
-    return 1;
 }
+
 
 int parser(grepOptions *opt, int i, char** argv, int *numOfpatterns, char** patterns, char** fileForF, int* PatternFiles, int argc, int* emptystr, int* err, char* inv_opt) {
     int k = 1;
     while (argv[i][k] != '\0') {
-     switch (argv[i][k]) {
-      case 'e':
-        opt->e_flag = 1;
-             if(i == argc - 1) {
-                 printf("grep: option requires an argument -- e");
-                 exit(1);  // убрать exit, использовать флаг
-             }
-        getPatternEOrFileF(argv, i, k, numOfpatterns, patterns);
-        break;
-      case 'i':
-        opt->i_flag = 1;
-        break;
-      case 'v':
-        opt->v_flag = 1;
-        break;
-      case 'c':
-        opt->c_flag = 1;
-        break;
-      case 'l':
-        opt->l_flag = 1;
-        break;
-      case 'n':
-        opt->n_flag = 1;
-        break;
-      case 'h':
-        opt->h_flag = 1;
-        break;
-      case 's':
-        opt->s_flag = 1;
-        break;
-      case 'f':
-        opt->f_flag = 1;
-        getPatternEOrFileF(argv, i, k, PatternFiles, fileForF);
-        patternsFromFile(*PatternFiles, fileForF, numOfpatterns, patterns, emptystr);
-        break;
-      default:
-            *err = 0;
+        if(argv[i][k] == 'e') {
+            opt->e_flag = 1;
+            if(i == (argc - 1) && argv[i][k + 1] == '\0') {
+                *err = 2;
+            } else {
+                getPatternEOrFileF(argv, i, k, numOfpatterns, patterns);
+            }
+        }
+        else if(argv[i][k] == 'i')
+            opt->i_flag = 1;
+        else if(argv[i][k] == 'v')
+            opt->v_flag = 1;
+        else if(argv[i][k] == 'c')
+            opt->c_flag = 1;
+        else if(argv[i][k] == 'l')
+            opt->l_flag = 1;
+        else if(argv[i][k] == 'n')
+            opt->n_flag = 1;
+        else if(argv[i][k] == 'h')
+            opt->h_flag = 1;
+        else if(argv[i][k] == 's')
+            opt->s_flag = 1;
+        else if(argv[i][k] == 'f') {
+            opt->f_flag = 1;
+            if(i == (argc - 1) && argv[i][k + 1] == '\0') {
+                *err = 2;
+            } else {
+                getPatternEOrFileF(argv, i, k, PatternFiles, fileForF);
+                patternsFromFile(*PatternFiles, fileForF, numOfpatterns, patterns, emptystr);
+            }
+        } else {
+            *err = 1;
             *inv_opt = argv[i][k];
-}
+        }
         k++;
-}
+    }
     return *err;
 }
-
 
 int patternWithoutE (int argc, char** argv, char** patterns) {
     int i = 1;
@@ -315,7 +315,17 @@ void patternsFromFile(int PatternFiles, char** fileForF, int *l, char** patterns
             fclose(f);
         } else {
             fprintf(stderr, "grep: %s: No such file or directory\n",
-                fileForF[i]);  // поменять на return 0 и добавить в output - если !input то печатать  эту ошибку
+                fileForF[i]);
         }
+    }
+}
+
+
+void cleanMemory(int numOfpatterns, char** patterns, char** fileForF) {
+    for (int i = 0; i < numOfpatterns; i++)  {
+        free(patterns[i]);
+    }
+    for (int i = 0; i < 100; i++)  {
+        free(fileForF[i]); // исправить
     }
 }
