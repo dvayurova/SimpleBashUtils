@@ -36,8 +36,8 @@ void reader(int argc, char **argv, catOptions opt) {
         fprintf(stderr, "cat: %s: No such file or directory\n",
                 argv[currentFile]);
       } else {
-          cat_func(f, opt);
-          fclose(f);
+        cat_func(f, opt);
+        fclose(f);
       }
       currentFile++;
     }
@@ -46,32 +46,36 @@ void reader(int argc, char **argv, catOptions opt) {
 
 void cat_func(FILE *f, catOptions opt) {
   int position = 0, num = 1, beginOfFile = 0;
+  int cont = 0;
   char c = ' ';
   char prevCh = '\n', prevPrev = '\n';
   while ((c = fgetc(f)) != EOF) {
     if (opt.s_flag && prevCh == '\n' && c == '\n' && prevPrev == '\n' &&
         beginOfFile != 0) {
-      continue;
+      cont = 1;
+    } else {
+      cont = 0;
     }
-    if ((opt.b_flag && c != '\n' && position == 0) ||
-        (opt.n_flag && !(opt.b_flag) && position == 0)) {
+    if (((opt.b_flag && c != '\n' && position == 0) ||
+         (opt.n_flag && !(opt.b_flag) && position == 0)) &&
+        !cont) {
       printf("%6d\t", num);
       num++;
       position++;
     }
 
-    if (opt.e_flag && c == '\n') {
+    if (opt.e_flag && c == '\n' && !cont) {
       printf("$");
     }
-    if (opt.t_flag && c == '\t') {
+    if (opt.t_flag && c == '\t' && !cont) {
       printf("^");
       c = 'I';
     }
     if (opt.v_flag) {
-      if ((c >= 0 && c < 9) || (c >= 11 && c <= 31)) {
+      if (((c >= 0 && c < 9) || (c >= 11 && c <= 31)) && !cont) {
         printf("^");
         c += 64;
-      } else if (c == 127) {
+      } else if (c == 127 && !cont) {
         printf("^");
         c -= 64;
       }
@@ -80,7 +84,7 @@ void cat_func(FILE *f, catOptions opt) {
     prevCh = c;
     beginOfFile++;
     if (c == '\n') position = 0;
-    printf("%c", c);
+    if (!cont) printf("%c", c);
   }
 }
 
