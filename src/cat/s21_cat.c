@@ -36,9 +36,9 @@ void reader(int argc, char **argv, catOptions opt) {
         fprintf(stderr, "cat: %s: No such file or directory\n",
                 argv[currentFile]);
       } else {
-        cat_func(f, opt);
+          cat_func(f, opt);
+          fclose(f);
       }
-      if (f != NULL) fclose(f);
       currentFile++;
     }
   }
