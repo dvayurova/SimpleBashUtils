@@ -110,20 +110,21 @@ int parser(grepOptions* opt, int i, char** argv, int* numOfpatterns,
 }
 
 int patternWithoutE(int argc, char** argv, char** patterns, int* err) {
-  int i = 1;
-  while (i < argc - 1) {
+  int i = 1, flag = 1, res = 0;
+  while (i < (argc - 1) && flag) {
     if (argv[i][0] != '\0') {
-      patterns[0] = malloc(strlen(argv[i]) * sizeof(char));
+      patterns[0] = malloc((strlen(argv[i]) + 1) * sizeof(char));
       if (patterns[0] != NULL)
         strcpy(patterns[0], argv[i]);
       else
         *err = 3;
       memset(argv[i], '\0', strlen(argv[i]));
-      return 1;
+      flag = 0;
+      res = 1;
     }
     i++;
   }
-  return 0;
+    return res;
 }
 
 void patternEorFileF(char** argv, int i, int k, int* l, char** str,
@@ -131,14 +132,14 @@ void patternEorFileF(char** argv, int i, int k, int* l, char** str,
                                   // файла после флага -f
   if (argv[i][k + 1] !=
       '\0') {  // копируем часть строки i после флага -е в паттерн
-    str[*l] = malloc((strlen(argv[i]) - k) * sizeof(char));
-    if (str[*l] != NULL)
+    str[*l] = malloc(((strlen(argv[i]) - k) + 1) * sizeof(char));
+    if (str[*l] != NULL) {
       copyEOstr(str[*l], argv[i], k + 1);
-    else
+    } else
       *err = 3;
     memset(argv[i], '\0', strlen(argv[i]));
   } else {
-    str[*l] = malloc((strlen(argv[i + 1])) * sizeof(char));
+    str[*l] = malloc((strlen(argv[i + 1]) + 1) * sizeof(char));
     if (str[*l] != NULL)
       strcpy(str[*l], argv[i + 1]);
     else
@@ -156,6 +157,7 @@ void copyEOstr(char* dest, char* src,
     m++;
     k++;
   }
+  dest[m] = '\0';
 }
 
 int numberOfFiles(int argc, char** argv) {
