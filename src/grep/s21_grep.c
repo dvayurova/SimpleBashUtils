@@ -223,7 +223,7 @@ void reader(int argc, char** argv, grepOptions opt, int numOfpatterns,
   ssize_t read;
   int num = 1;  // для вывода номера строки
   int match = 0;
-  int counter = 0;  //  для фалага -с
+  int counter = 0;  //  для флага -с
   int cntFilesForSearch = numberOfFiles(argc, argv);
   int currentFile = 1;
   while (currentFile < argc) {
